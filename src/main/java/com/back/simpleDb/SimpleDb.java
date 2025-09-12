@@ -39,45 +39,6 @@ public class SimpleDb {
         }
     }
 
-    public void close() {
-        Connection conn = connectionHolder.get();
-        if (conn != null) {
-            try {
-                conn.close();
-            } catch (SQLException ignored) {}
-            connectionHolder.remove();
-        }
-    }
-
-    public void startTransaction() {
-        try {
-            Connection conn = getConnection();
-            conn.setAutoCommit(false);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public void rollback() {
-        try {
-            Connection conn = getConnection();
-            conn.rollback();
-            conn.setAutoCommit(true);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public void commit() {
-        try {
-            Connection conn = getConnection();
-            conn.commit();
-            conn.setAutoCommit(true);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
     private Connection getConnection() throws SQLException {
         Connection conn = connectionHolder.get();
         if (conn == null || conn.isClosed()) {
