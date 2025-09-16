@@ -10,14 +10,4 @@ public record Article(
         LocalDateTime modifiedDate,
         boolean isBlind
 ) {
-//    public Article(com.back.Article article) {
-//        this(
-//                article.id(),
-//                article.title(),
-//                article.body(),
-//                article.createdDate(),
-//                article.modifiedDate(),
-//                article.isBlind()
-//        );
-//    }
 }

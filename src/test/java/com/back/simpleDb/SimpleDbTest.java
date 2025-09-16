@@ -2,6 +2,9 @@ package com.back.simpleDb;
 
 import org.junit.jupiter.api.*;
 
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.IntStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -14,6 +17,30 @@ public class SimpleDbTest {
     public static void beforeAll() {
         simpleDb = new SimpleDb("localhost", "root", "root123414", "simpleDb__test");
         simpleDb.setDevMode(true);
+
+        createArticleTable();
+    }
+
+    @BeforeEach
+    public void beforeEach() {
+        truncateArticleTable();
+        makeArticleTestData();
+    }
+
+    private static void createArticleTable() {
+        simpleDb.run("DROP TABLE IF EXISTS article");
+
+        simpleDb.run("""
+                CREATE TABLE article (
+                    id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+                    PRIMARY KEY(id),
+                    createdDate DATETIME NOT NULL,
+                    modifiedDate DATETIME NOT NULL,
+                    title VARCHAR(100) NOT NULL,
+                    `body` TEXT NOT NULL,
+                    isBlind BIT(1) NOT NULL DEFAULT 0
+                )
+                """);
     }
 
     private void makeArticleTestData() {
@@ -60,105 +87,105 @@ public class SimpleDbTest {
         assertThat(newId).isGreaterThan(0);
     }
 
-//    @Test
-//    @DisplayName("update")
-//    public void t002() {
-//        Sql sql = simpleDb.genSql();
-//
-//        // id가 0, 1, 2, 3인 글 수정
-//        // id가 0인 글은 없으니, 실제로는 3개의 글이 삭제됨
-//
-//        /*
-//        == rawSql ==
-//        UPDATE article
-//        SET title = '제목 new'
-//        WHERE id IN ('0', '1', '2', '3')
-//        */
-//        sql.append("UPDATE article")
-//                .append("SET title = ?", "제목 new")
-//                .append("WHERE id IN (?, ?, ?, ?)", 0, 1, 2, 3);
-//
-//        // 수정된 row 개수
-//        int affectedRowsCount = sql.update();
-//
-//        assertThat(affectedRowsCount).isEqualTo(3);
-//    }
-//
-//    @Test
-//    @DisplayName("delete")
-//    public void t003() {
-//        Sql sql = simpleDb.genSql();
-//
-//        // id가 0, 1, 3인 글 삭제
-//        // id가 0인 글은 없으니, 실제로는 2개의 글이 삭제됨
-//        /*
-//        == rawSql ==
-//        DELETE FROM article
-//        WHERE id IN ('0', '1', '3')
-//        */
-//        sql.append("DELETE")
-//                .append("FROM article")
-//                .append("WHERE id IN (?, ?, ?)", 0, 1, 3);
-//
-//        // 삭제된 row 개수
-//        int affectedRowsCount = sql.delete();
-//
-//        assertThat(affectedRowsCount).isEqualTo(2);
-//    }
-//
-//    @Test
-//    @DisplayName("selectRows")
-//    public void t004() {
-//        Sql sql = simpleDb.genSql();
-//        /*
-//        == rawSql ==
-//        SELECT *
-//        FROM article
-//        ORDER BY id ASC
-//        LIMIT 3
-//        */
-//        sql.append("SELECT * FROM article ORDER BY id ASC LIMIT 3");
-//        List<Map<String, Object>> articleRows = sql.selectRows();
-//
-//        IntStream.range(0, articleRows.size()).forEach(i -> {
-//            long id = i + 1;
-//
-//            Map<String, Object> articleRow = articleRows.get(i);
-//
-//            assertThat(articleRow.get("id")).isEqualTo(id);
-//            assertThat(articleRow.get("title")).isEqualTo("제목%d".formatted(id));
-//            assertThat(articleRow.get("body")).isEqualTo("내용%d".formatted(id));
-//            assertThat(articleRow.get("createdDate")).isInstanceOf(LocalDateTime.class);
-//            assertThat(articleRow.get("createdDate")).isNotNull();
-//            assertThat(articleRow.get("modifiedDate")).isInstanceOf(LocalDateTime.class);
-//            assertThat(articleRow.get("modifiedDate")).isNotNull();
-//            assertThat(articleRow.get("isBlind")).isEqualTo(false);
-//        });
-//    }
-//
-//    @Test
-//    @DisplayName("selectRow")
-//    public void t005() {
-//        Sql sql = simpleDb.genSql();
-//        /*
-//        == rawSql ==
-//        SELECT *
-//        FROM article
-//        WHERE id = 1
-//        */
-//        sql.append("SELECT * FROM article WHERE id = 1");
-//        Map<String, Object> articleRow = sql.selectRow();
-//
-//        assertThat(articleRow.get("id")).isEqualTo(1L);
-//        assertThat(articleRow.get("title")).isEqualTo("제목1");
-//        assertThat(articleRow.get("body")).isEqualTo("내용1");
-//        assertThat(articleRow.get("createdDate")).isInstanceOf(LocalDateTime.class);
-//        assertThat(articleRow.get("createdDate")).isNotNull();
-//        assertThat(articleRow.get("modifiedDate")).isInstanceOf(LocalDateTime.class);
-//        assertThat(articleRow.get("modifiedDate")).isNotNull();
-//        assertThat(articleRow.get("isBlind")).isEqualTo(false);
-//    }
-//
+    @Test
+    @DisplayName("update")
+    public void t002() {
+        Sql sql = simpleDb.genSql();
+
+        // id가 0, 1, 2, 3인 글 수정
+        // id가 0인 글은 없으니, 실제로는 3개의 글이 삭제됨
+
+        /*
+        == rawSql ==
+        UPDATE article
+        SET title = '제목 new'
+        WHERE id IN ('0', '1', '2', '3')
+        */
+        sql.append("UPDATE article")
+                .append("SET title = ?", "제목 new")
+                .append("WHERE id IN (?, ?, ?, ?)", 0, 1, 2, 3);
+
+        // 수정된 row 개수
+        int affectedRowsCount = sql.update();
+
+        assertThat(affectedRowsCount).isEqualTo(3);
+    }
+
+    @Test
+    @DisplayName("delete")
+    public void t003() {
+        Sql sql = simpleDb.genSql();
+
+        // id가 0, 1, 3인 글 삭제
+        // id가 0인 글은 없으니, 실제로는 2개의 글이 삭제됨
+        /*
+        == rawSql ==
+        DELETE FROM article
+        WHERE id IN ('0', '1', '3')
+        */
+        sql.append("DELETE")
+                .append("FROM article")
+                .append("WHERE id IN (?, ?, ?)", 0, 1, 3);
+
+        // 삭제된 row 개수
+        int affectedRowsCount = sql.delete();
+
+        assertThat(affectedRowsCount).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("selectRows")
+    public void t004() {
+        Sql sql = simpleDb.genSql();
+        /*
+        == rawSql ==
+        SELECT *
+        FROM article
+        ORDER BY id ASC
+        LIMIT 3
+        */
+        sql.append("SELECT * FROM article ORDER BY id ASC LIMIT 3");
+        List<Map<String, Object>> articleRows = sql.selectRows();
+
+        IntStream.range(0, articleRows.size()).forEach(i -> {
+            long id = i + 1;
+
+            Map<String, Object> articleRow = articleRows.get(i);
+
+            assertThat(articleRow.get("id")).isEqualTo(id);
+            assertThat(articleRow.get("title")).isEqualTo("제목%d".formatted(id));
+            assertThat(articleRow.get("body")).isEqualTo("내용%d".formatted(id));
+            assertThat(articleRow.get("createdDate")).isInstanceOf(LocalDateTime.class);
+            assertThat(articleRow.get("createdDate")).isNotNull();
+            assertThat(articleRow.get("modifiedDate")).isInstanceOf(LocalDateTime.class);
+            assertThat(articleRow.get("modifiedDate")).isNotNull();
+            assertThat(articleRow.get("isBlind")).isEqualTo(false);
+        });
+    }
+
+    @Test
+    @DisplayName("selectRow")
+    public void t005() {
+        Sql sql = simpleDb.genSql();
+        /*
+        == rawSql ==
+        SELECT *
+        FROM article
+        WHERE id = 1
+        */
+        sql.append("SELECT * FROM article WHERE id = 1");
+        Map<String, Object> articleRow = sql.selectRow();
+
+        assertThat(articleRow.get("id")).isEqualTo(1L);
+        assertThat(articleRow.get("title")).isEqualTo("제목1");
+        assertThat(articleRow.get("body")).isEqualTo("내용1");
+        assertThat(articleRow.get("createdDate")).isInstanceOf(LocalDateTime.class);
+        assertThat(articleRow.get("createdDate")).isNotNull();
+        assertThat(articleRow.get("modifiedDate")).isInstanceOf(LocalDateTime.class);
+        assertThat(articleRow.get("modifiedDate")).isNotNull();
+        assertThat(articleRow.get("isBlind")).isEqualTo(false);
+    }
+
 //    @Test
 //    @DisplayName("selectDatetime")
 //    public void t006() {
@@ -175,114 +202,114 @@ public class SimpleDbTest {
 //
 //        assertThat(diff).isLessThanOrEqualTo(1L);
 //    }
-//
-//    @Test
-//    @DisplayName("selectLong")
-//    public void t007() {
-//        Sql sql = simpleDb.genSql();
-//        /*
-//        == rawSql ==
-//        SELECT id
-//        FROM article
-//        WHERE id = 1
-//        */
-//        sql.append("SELECT id")
-//                .append("FROM article")
-//                .append("WHERE id = 1");
-//
-//        Long id = sql.selectLong();
-//
-//        assertThat(id).isEqualTo(1);
-//    }
-//
-//    @Test
-//    @DisplayName("selectString")
-//    public void t008() {
-//        Sql sql = simpleDb.genSql();
-//        /*
-//        == rawSql ==
-//        SELECT title
-//        FROM article
-//        WHERE id = 1
-//        */
-//        sql.append("SELECT title")
-//                .append("FROM article")
-//                .append("WHERE id = 1");
-//
-//        String title = sql.selectString();
-//
-//        assertThat(title).isEqualTo("제목1");
-//    }
-//
-//    @Test
-//    @DisplayName("selectBoolean")
-//    public void t009() {
-//        Sql sql = simpleDb.genSql();
-//        /*
-//        == rawSql ==
-//        SELECT isBlind
-//        FROM article
-//        WHERE id = 1
-//        */
-//        sql.append("SELECT isBlind")
-//                .append("FROM article")
-//                .append("WHERE id = 1");
-//
-//        Boolean isBlind = sql.selectBoolean();
-//
-//        assertThat(isBlind).isEqualTo(false);
-//    }
-//
-//    @Test
-//    @DisplayName("selectBoolean, 2nd")
-//    public void t010() {
-//        Sql sql = simpleDb.genSql();
-//        /*
-//        == rawSql ==
-//        SELECT 1 = 1
-//        */
-//        sql.append("SELECT 1 = 1");
-//
-//        Boolean isBlind = sql.selectBoolean();
-//
-//        assertThat(isBlind).isEqualTo(true);
-//    }
-//
-//    @Test
-//    @DisplayName("selectBoolean, 3rd")
-//    public void t011() {
-//        Sql sql = simpleDb.genSql();
-//        /*
-//        == rawSql ==
-//        SELECT 1 = 0
-//        */
-//        sql.append("SELECT 1 = 0");
-//
-//        Boolean isBlind = sql.selectBoolean();
-//
-//        assertThat(isBlind).isEqualTo(false);
-//    }
-//
-//    @Test
-//    @DisplayName("select, LIKE 사용법")
-//    public void t012() {
-//        Sql sql = simpleDb.genSql();
-//        /*
-//        == rawSql ==
-//        SELECT COUNT(*)
-//        FROM article
-//        WHERE id BETWEEN '1' AND '3'
-//        AND title LIKE CONCAT('%', '제목' '%')
-//        */
-//        sql.append("SELECT COUNT(*)")
-//                .append("FROM article")
-//                .append("WHERE id BETWEEN ? AND ?", 1, 3)
-//                .append("AND title LIKE CONCAT('%', ? '%')", "제목");
-//
-//        long count = sql.selectLong();
-//
-//        assertThat(count).isEqualTo(3);
-//    }
+
+    @Test
+    @DisplayName("selectLong")
+    public void t007() {
+        Sql sql = simpleDb.genSql();
+        /*
+        == rawSql ==
+        SELECT id
+        FROM article
+        WHERE id = 1
+        */
+        sql.append("SELECT id")
+                .append("FROM article")
+                .append("WHERE id = 1");
+
+        Long id = sql.selectLong();
+
+        assertThat(id).isEqualTo(1);
+    }
+
+    @Test
+    @DisplayName("selectString")
+    public void t008() {
+        Sql sql = simpleDb.genSql();
+        /*
+        == rawSql ==
+        SELECT title
+        FROM article
+        WHERE id = 1
+        */
+        sql.append("SELECT title")
+                .append("FROM article")
+                .append("WHERE id = 1");
+
+        String title = sql.selectString();
+
+        assertThat(title).isEqualTo("제목1");
+    }
+
+    @Test
+    @DisplayName("selectBoolean")
+    public void t009() {
+        Sql sql = simpleDb.genSql();
+        /*
+        == rawSql ==
+        SELECT isBlind
+        FROM article
+        WHERE id = 1
+        */
+        sql.append("SELECT isBlind")
+                .append("FROM article")
+                .append("WHERE id = 1");
+
+        Boolean isBlind = sql.selectBoolean();
+
+        assertThat(isBlind).isEqualTo(false);
+    }
+
+    @Test
+    @DisplayName("selectBoolean, 2nd")
+    public void t010() {
+        Sql sql = simpleDb.genSql();
+        /*
+        == rawSql ==
+        SELECT 1 = 1
+        */
+        sql.append("SELECT 1 = 1");
+
+        Boolean isBlind = sql.selectBoolean();
+
+        assertThat(isBlind).isEqualTo(true);
+    }
+
+    @Test
+    @DisplayName("selectBoolean, 3rd")
+    public void t011() {
+        Sql sql = simpleDb.genSql();
+        /*
+        == rawSql ==
+        SELECT 1 = 0
+        */
+        sql.append("SELECT 1 = 0");
+
+        Boolean isBlind = sql.selectBoolean();
+
+        assertThat(isBlind).isEqualTo(false);
+    }
+
+    @Test
+    @DisplayName("select, LIKE 사용법")
+    public void t012() {
+        Sql sql = simpleDb.genSql();
+        /*
+        == rawSql ==
+        SELECT COUNT(*)
+        FROM article
+        WHERE id BETWEEN '1' AND '3'
+        AND title LIKE CONCAT('%', '제목' '%')
+        */
+        sql.append("SELECT COUNT(*)")
+                .append("FROM article")
+                .append("WHERE id BETWEEN ? AND ?", 1, 3)
+                .append("AND title LIKE CONCAT('%', ? '%')", "제목");
+
+        long count = sql.selectLong();
+
+        assertThat(count).isEqualTo(3);
+    }
 //
 //    @Test
 //    @DisplayName("appendIn")
@@ -324,7 +351,7 @@ public class SimpleDbTest {
 //
 //        assertThat(foundIds).isEqualTo(Arrays.stream(ids).toList());
 //    }
-//
+
 //    @Test
 //    @DisplayName("selectRows, Article")
 //    public void t015() {
