@@ -1,5 +1,6 @@
 package com.back.simpleDb;
 
+import java.lang.reflect.Field;
 import java.sql.*;
 import java.util.*;
 
@@ -156,5 +157,66 @@ public class Sql {
         if ("1".equals(s) || "true".equals(s)) return true;
         if ("0".equals(s) || "false".equals(s)) return false;
         return Boolean.parseBoolean(s);
+    }
+
+//    SELECT 결과의 첫 컬럼을 Long List로 반환
+    public List<Long> selectLongs() {
+        List<Long> result = new ArrayList<>();
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            ps = con.prepareStatement(sqlBuilder.toString());
+            setParams(ps);
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                result.add(rs.getLong(1));
+            }
+            return result;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            close(rs, ps);
+        }
+    }
+
+//    SELECT 결과를 지정한 클래스 타입의 리스트로 매핑하여 반환
+    public <T> List<T> selectRows(Class<T> clazz) {
+        List<T> result = new ArrayList<>();
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            ps = con.prepareStatement(sqlBuilder.toString());
+            setParams(ps);
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                result.add(mapRowToClass(rs, clazz));
+            }
+            return result;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            close(rs, ps);
+        }
+    }
+
+//    ResultSet의 현재 행을 clazz 타입 객체로 변환
+    private <T> T mapRowToClass(ResultSet rs, Class<T> clazz) {
+        try {
+            T obj = clazz.getDeclaredConstructor().newInstance();
+            ResultSetMetaData meta = rs.getMetaData();
+            for (int i = 1; i <= meta.getColumnCount(); i++) {
+                String col = meta.getColumnLabel(i);
+                Object val = rs.getObject(i);
+                try {
+                    Field field = clazz.getDeclaredField(col);
+                    field.setAccessible(true);
+                    field.set(obj, val);
+                } catch (NoSuchFieldException ignored) {
+                }
+            }
+            return obj;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 }

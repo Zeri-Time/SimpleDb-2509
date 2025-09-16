@@ -2,13 +2,35 @@ package com.back;
 
 import java.time.LocalDateTime;
 
-// record 사용 이유: 불변(value object에 적합) / 간결한 코드 / 보일러플레이트 줄어듬
-public record Article(
-        Long id,
-        String title,
-        String body,
-        LocalDateTime createdDate,
-        LocalDateTime modifiedDate,
-        boolean isBlind
-) {
+public class Article {
+    private Long id;
+    private String title;
+    private String body;
+    private LocalDateTime createdDate;
+    private LocalDateTime modifiedDate;
+    private boolean isBlind;
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getBody() {
+        return body;
+    }
+
+    public LocalDateTime getCreatedDate() {
+        return createdDate;
+    }
+
+    public LocalDateTime getModifiedDate() {
+        return modifiedDate;
+    }
+
+    public boolean isBlind() {
+        return isBlind;
+    }
 }
