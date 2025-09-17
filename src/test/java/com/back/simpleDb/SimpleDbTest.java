@@ -383,7 +383,8 @@ public class SimpleDbTest {
             assertThat(article.isBlind()).isEqualTo(false);
         });
     }
-//
+
+    //
 //    @Test
 //    @DisplayName("selectRow, Article")
 //    public void t016() {
@@ -528,4 +529,8 @@ public class SimpleDbTest {
 //
 //        assertThat(newCount).isEqualTo(oldCount + 1);
 //    }
+    @AfterAll
+    public static void afterAll() {
+        simpleDb.closeConnection();
+    }
 }

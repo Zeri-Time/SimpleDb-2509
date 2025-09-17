@@ -1,60 +1,39 @@
 package com.back.simpleDb;
 
-import java.lang.reflect.Field;
+import com.back.Article;
+import lombok.Getter;
+
 import java.sql.*;
-import java.util.*;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
+@Getter
 public class Sql {
-    private final Connection con;
-    private final StringBuilder sqlBuilder = new StringBuilder();
-    private final List<Object> params = new ArrayList<>();
+    private final Connection connection;
+    private final SqlBuilder builder;
 
-    //    DB 커넥션 받아 Sql객체 생성
-    public Sql(Connection con) {
-        this.con = con;
+    public Sql(Connection connection) {
+        this.connection = connection;
+        this.builder = new SqlBuilder();
     }
 
-    //    파라미터 바인딩
     public Sql append(String sqlPart, Object... args) {
-        if (sqlBuilder.length() > 0) sqlBuilder.append(" ");
-        sqlBuilder.append(sqlPart);
-        if (args != null) Collections.addAll(params, args);
+        builder.append(sqlPart, args);
         return this;
     }
-
-    // SQL 쿼리에서 IN 조건 쓸때 사용. 쿼리, params 추가
     public Sql appendIn(String sqlPart, Object... args) {
-        if (args == null || args.length == 0)
-            throw new IllegalArgumentException("IN 파라미터가 비어있습니다.");
-        String placeholders = String.join(", ", Collections.nCopies(args.length, "?"));
-        sqlBuilder.append(" ").append(sqlPart.replace("?", placeholders));
-        Collections.addAll(params, args);
+        builder.appendIn(sqlPart, args);
         return this;
     }
 
-    //    ps에 params 바인딩
-    private void setParams(PreparedStatement ps) throws SQLException {
-        for (int i = 0; i < params.size(); i++) {
-            ps.setObject(i + 1, params.get(i));
-        }
-    }
-
-    //    자원을 안전하게 닫음
-    private void close(AutoCloseable... resources) {
-        for (AutoCloseable r : resources) {
-            if (r != null) try {
-                r.close();
-            } catch (Exception ignored) {
-            }
-        }
-    }
-
-    //    INSERT
     public long insert() {
         PreparedStatement ps = null;
         ResultSet rs = null;
         try {
-            ps = con.prepareStatement(sqlBuilder.toString(), Statement.RETURN_GENERATED_KEYS);
+            ps = getConnection().prepareStatement(getSql(), Statement.RETURN_GENERATED_KEYS);
             setParams(ps);
             ps.executeUpdate();
             rs = ps.getGeneratedKeys();
@@ -66,12 +45,10 @@ public class Sql {
             close(rs, ps);
         }
     }
-
-    //    UPDATE / 영향받은 행 수를 반환
     public int update() {
         PreparedStatement ps = null;
         try {
-            ps = con.prepareStatement(sqlBuilder.toString());
+            ps = getConnection().prepareStatement(getSql());
             setParams(ps);
             return ps.executeUpdate();
         } catch (SQLException e) {
@@ -80,18 +57,13 @@ public class Sql {
             close(ps);
         }
     }
+    public int delete() { return update(); }
 
-    // DELETE
-    public int delete() {
-        return update();
-    }
-
-//    SELECT / list로 return
     public List<Map<String, Object>> selectRows() {
         PreparedStatement ps = null;
         ResultSet rs = null;
         try {
-            ps = con.prepareStatement(sqlBuilder.toString());
+            ps = getConnection().prepareStatement(getSql());
             setParams(ps);
             rs = ps.executeQuery();
             return mapResultSetToList(rs);
@@ -101,14 +73,102 @@ public class Sql {
             close(rs, ps);
         }
     }
-
-    // SELECT 쿼리 결과에서 첫번째 행만 반환
     public Map<String, Object> selectRow() {
         List<Map<String, Object>> rows = selectRows();
         return rows.isEmpty() ? null : rows.get(0);
     }
+    public Long selectLong() {
+        Object value = getFirstValue(selectRow());
+        if (value == null) return null;
+        if (value instanceof Number) return ((Number) value).longValue();
+        try { return Long.parseLong(value.toString().trim()); } catch (NumberFormatException e) { return null; }
+    }
+    public String selectString() {
+        Object value = getFirstValue(selectRow());
+        return value == null ? null : value.toString();
+    }
+    public Boolean selectBoolean() {
+        Object value = getFirstValue(selectRow());
+        if (value == null) return null;
+        if (value instanceof Boolean) return (Boolean) value;
+        if (value instanceof Number) return ((Number) value).intValue() != 0;
+        String s = value.toString().trim().toLowerCase();
+        if ("1".equals(s) || "true".equals(s)) return true;
+        if ("0".equals(s) || "false".equals(s)) return false;
+        return Boolean.parseBoolean(s);
+    }
+    public List<Long> selectLongs() {
+        List<Long> result = new ArrayList<>();
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            ps = getConnection().prepareStatement(getSql());
+            setParams(ps);
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                result.add(rs.getLong(1));
+            }
+            return result;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            close(rs, ps);
+        }
+    }
+    public List<Article> selectRows(Class<Article> clazz) {
+        List<Article> result = new ArrayList<>();
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            ps = getConnection().prepareStatement(getSql());
+            setParams(ps);
+            rs = ps.executeQuery();
+            while (rs.next()) {
+                result.add(mapRowToArticle(rs));
+            }
+            return result;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            close(rs, ps);
+        }
+    }
+    public Article selectRow(Class<Article> clazz) {
+        List<Article> articles = selectRows(clazz);
+        return articles.isEmpty() ? null : articles.get(0);
+    }
+    public LocalDateTime selectDatetime() {
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+        try {
+            ps = getConnection().prepareStatement(getSql());
+            setParams(ps);
+            rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getTimestamp(1).toLocalDateTime();
+            }
+            return null;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            close(rs, ps);
+        }
+    }
 
-//    ResultSet을 List/<Map/> 형태로 변환
+    public String getSql() { return builder.getSql(); }
+    public List<Object> getParams() { return builder.getParams(); }
+    private Connection getConnection() { return connection; }
+    private void setParams(PreparedStatement ps) throws SQLException {
+        List<Object> params = getParams();
+        for (int i = 0; i < params.size(); i++) {
+            ps.setObject(i + 1, params.get(i));
+        }
+    }
+    private void close(AutoCloseable... resources) {
+        for (AutoCloseable r : resources) {
+            if (r != null) try { r.close(); } catch (Exception ignored) {}
+        }
+    }
     private List<Map<String, Object>> mapResultSetToList(ResultSet rs) throws SQLException {
         List<Map<String, Object>> list = new ArrayList<>();
         ResultSetMetaData meta = rs.getMetaData();
@@ -122,101 +182,18 @@ public class Sql {
         }
         return list;
     }
-
-//    Map의 첫번째 값 반환
     private Object getFirstValue(Map<String, Object> row) {
         if (row == null) return null;
         return row.values().stream().findFirst().orElse(null);
     }
-
-//    SELECT 결과의 첫번째 값을 Long으로 반환
-    public Long selectLong() {
-        Object value = getFirstValue(selectRow());
-        if (value == null) return null;
-        if (value instanceof Number) return ((Number) value).longValue();
-        try {
-            return Long.parseLong(value.toString().trim());
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-//    SELECT 결과의 첫번째 값을 String으로 반환
-    public String selectString() {
-        Object value = getFirstValue(selectRow());
-        return value == null ? null : value.toString();
-    }
-
-    //    SELECT 결과의 첫번째 값을 Boolean으로 반환
-    public Boolean selectBoolean() {
-        Object value = getFirstValue(selectRow());
-        if (value == null) return null;
-        if (value instanceof Boolean) return (Boolean) value;
-        if (value instanceof Number) return ((Number) value).intValue() != 0;
-        String s = value.toString().trim().toLowerCase();
-        if ("1".equals(s) || "true".equals(s)) return true;
-        if ("0".equals(s) || "false".equals(s)) return false;
-        return Boolean.parseBoolean(s);
-    }
-
-//    SELECT 결과의 첫 컬럼을 Long List로 반환
-    public List<Long> selectLongs() {
-        List<Long> result = new ArrayList<>();
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try {
-            ps = con.prepareStatement(sqlBuilder.toString());
-            setParams(ps);
-            rs = ps.executeQuery();
-            while (rs.next()) {
-                result.add(rs.getLong(1));
-            }
-            return result;
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } finally {
-            close(rs, ps);
-        }
-    }
-
-//    SELECT 결과를 지정한 클래스 타입의 리스트로 매핑하여 반환
-    public <T> List<T> selectRows(Class<T> clazz) {
-        List<T> result = new ArrayList<>();
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try {
-            ps = con.prepareStatement(sqlBuilder.toString());
-            setParams(ps);
-            rs = ps.executeQuery();
-            while (rs.next()) {
-                result.add(mapRowToClass(rs, clazz));
-            }
-            return result;
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } finally {
-            close(rs, ps);
-        }
-    }
-
-//    ResultSet의 현재 행을 clazz 타입 객체로 변환
-    private <T> T mapRowToClass(ResultSet rs, Class<T> clazz) {
-        try {
-            T obj = clazz.getDeclaredConstructor().newInstance();
-            ResultSetMetaData meta = rs.getMetaData();
-            for (int i = 1; i <= meta.getColumnCount(); i++) {
-                String col = meta.getColumnLabel(i);
-                Object val = rs.getObject(i);
-                try {
-                    Field field = clazz.getDeclaredField(col);
-                    field.setAccessible(true);
-                    field.set(obj, val);
-                } catch (NoSuchFieldException ignored) {
-                }
-            }
-            return obj;
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    private Article mapRowToArticle(ResultSet rs) throws SQLException {
+        Article article = new Article();
+        article.setId(rs.getLong("id"));
+        article.setTitle(rs.getString("title"));
+        article.setBody(rs.getString("body"));
+        article.setCreatedDate(rs.getTimestamp("createdDate").toLocalDateTime());
+        article.setModifiedDate(rs.getTimestamp("modifiedDate").toLocalDateTime());
+        article.setBlind(rs.getBoolean("isBlind"));
+        return article;
     }
 }
