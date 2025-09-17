@@ -56,11 +56,11 @@ public class SimpleDb {
         }
     }
 
-    public void close() {
-        Connection con = threadLocalCon.get();
-        if (con != null) {
-            try { con.close(); } catch (Exception ignored) {}
-            threadLocalCon.remove();
-        }
-    }
+//    public void close() {
+//        Connection con = threadLocalCon.get();
+//        if (con != null) {
+//            try { con.close(); } catch (Exception ignored) {}
+//            threadLocalCon.remove();
+//        }
+//    }
 }
