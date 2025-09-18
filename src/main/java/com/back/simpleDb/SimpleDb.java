@@ -62,18 +62,33 @@ public class SimpleDb {
         this.devMode = devMode;
     }
 
+    //    closeConnection Before
     // 테스트 코드 마지막에 @AfterAll 어노테이션을 이용해서 임시로 사용중
 //    질문 후 수정 예정
+//    public void closeConnection() {
+//        Connection con = threadLocalCon.get();
+//        if (con != null) {
+//            try {
+//                con.close();
+//            } catch (SQLException e) {
+//                throw new RuntimeException(e);
+//            } finally {
+//                threadLocalCon.remove();
+//            }
+//        }
+//    }
+
+//    closeConnection Edited
+//    Con.remove를 close보다 먼저 호출해서 close에서 예외가 발생해도 remove되도록 변경
     public void closeConnection() {
         Connection con = threadLocalCon.get();
-        if (con != null) {
-            try {
-                con.close();
-            } catch (SQLException e) {
-                throw new RuntimeException(e);
-            } finally {
-                threadLocalCon.remove();
-            }
+        if (con == null) return;
+
+        threadLocalCon.remove();
+        try {
+            con.close();
+        } catch (SQLException e) {
+            throw new RuntimeException("Connection close 실패", e);
         }
     }
 }

@@ -453,7 +453,7 @@ public class SimpleDbTest {
 //                }
 //            } finally {
 //                // 커넥션 종료
-//                simpleDb.close();
+//                simpleDb.closeConnection();
 //                // 작업이 완료되면 래치 카운터를 감소시킵니다.
 //                latch.countDown();
 //            }

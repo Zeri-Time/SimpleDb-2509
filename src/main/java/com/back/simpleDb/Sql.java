@@ -204,31 +204,50 @@ public class Sql {
         return article;
     }
 
+    //  --execute before
     // execute 헬퍼 메서드와 함수형 인터페이스 추가
     // db에 연결하고 에러처리하는 반복적인 코드룰 여기서 처리해서 중복 x
-    private <T> T execute(SqlAction<T> action, boolean returnGeneratedKeys) {
-        Connection conn = null;
-        PreparedStatement ps = null;
-        ResultSet rs = null;
+//    private <T> T execute(SqlAction<T> action, boolean returnGeneratedKeys) {
+//        Connection conn = null;
+//        PreparedStatement ps = null;
+//        ResultSet rs = null;
+//
+//        try {
+//            conn = getConnection();
+//            if (returnGeneratedKeys) {
+//                ps = conn.prepareStatement(getSql(), Statement.RETURN_GENERATED_KEYS);
+//            } else {
+//                ps = conn.prepareStatement(getSql());
+//            }
+//            setParams(ps);
+//            return action.apply(ps);
+//        } catch (SQLException e) {
+//            throw new RuntimeException(e);
+//        } finally {
+//            try {
+//                if (rs != null) rs.close();
+//                if (ps != null) ps.close();
+//            } catch (SQLException e) {
+//                e.printStackTrace();
+//            }
+//        }
+//    }
 
+    //  --execute edited
+//    rs와 ps를 try-with-resources를 이용해서 닫기
+//    ps가 닫힐때 알아서 연결된 rs도 자동으로 닫힘
+    private <T> T execute(SqlAction<T> action, boolean returnGeneratedKeys) {
         try {
-            conn = getConnection();
-            if (returnGeneratedKeys) {
-                ps = conn.prepareStatement(getSql(), Statement.RETURN_GENERATED_KEYS);
-            } else {
-                ps = conn.prepareStatement(getSql());
-            }
-            setParams(ps);
-            return action.apply(ps);
+            Connection conn = getConnection();
+            try (PreparedStatement ps = returnGeneratedKeys ?
+                    conn.prepareStatement(getSql(), Statement.RETURN_GENERATED_KEYS) :
+                    conn.prepareStatement(getSql())) {
+
+                setParams(ps);
+                return action.apply(ps);
+            } // ps는 여기서 자동으로 close() 호출
         } catch (SQLException e) {
             throw new RuntimeException(e);
-        } finally {
-            try {
-                if (rs != null) rs.close();
-                if (ps != null) ps.close();
-            } catch (SQLException e) {
-                e.printStackTrace();
-            }
         }
     }
 
