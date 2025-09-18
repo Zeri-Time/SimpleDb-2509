@@ -24,69 +24,77 @@ public class Sql {
         builder.append(sqlPart, args);
         return this;
     }
+
     public Sql appendIn(String sqlPart, Object... args) {
         builder.appendIn(sqlPart, args);
         return this;
     }
 
+    //예시로 남겨둔 코드(삭제예정)
+//    public long insert() {
+//        PreparedStatement ps = null;
+//        ResultSet rs = null;
+//        try {
+//            ps = getConnection().prepareStatement(getSql(), Statement.RETURN_GENERATED_KEYS);
+//            setParams(ps);
+//            ps.executeUpdate();
+//            rs = ps.getGeneratedKeys();
+//            if (rs.next()) return rs.getLong(1);
+//            return 0;
+//        } catch (SQLException e) {
+//            throw new RuntimeException(e);
+//        } finally {
+//            close(rs, ps);
+//        }
+//    }
+
     public long insert() {
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try {
-            ps = getConnection().prepareStatement(getSql(), Statement.RETURN_GENERATED_KEYS);
-            setParams(ps);
+        return execute((ps) -> {
             ps.executeUpdate();
-            rs = ps.getGeneratedKeys();
-            if (rs.next()) return rs.getLong(1);
-            return 0;
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } finally {
-            close(rs, ps);
-        }
+            try (ResultSet rs = ps.getGeneratedKeys()) {
+                if (rs.next()) return rs.getLong(1);
+                return 0L;
+            }
+        }, true);
     }
+
     public int update() {
-        PreparedStatement ps = null;
-        try {
-            ps = getConnection().prepareStatement(getSql());
-            setParams(ps);
-            return ps.executeUpdate();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } finally {
-            close(ps);
-        }
+        return execute(PreparedStatement::executeUpdate, false);
     }
-    public int delete() { return update(); }
+
+    public int delete() {
+        return update();
+    }
 
     public List<Map<String, Object>> selectRows() {
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try {
-            ps = getConnection().prepareStatement(getSql());
-            setParams(ps);
-            rs = ps.executeQuery();
-            return mapResultSetToList(rs);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } finally {
-            close(rs, ps);
-        }
+        return execute((ps) -> {
+            try (ResultSet rs = ps.executeQuery()) {
+                return mapResultSetToList(rs);
+            }
+        }, false);
     }
+
     public Map<String, Object> selectRow() {
         List<Map<String, Object>> rows = selectRows();
         return rows.isEmpty() ? null : rows.get(0);
     }
+
     public Long selectLong() {
         Object value = getFirstValue(selectRow());
         if (value == null) return null;
         if (value instanceof Number) return ((Number) value).longValue();
-        try { return Long.parseLong(value.toString().trim()); } catch (NumberFormatException e) { return null; }
+        try {
+            return Long.parseLong(value.toString().trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
+
     public String selectString() {
         Object value = getFirstValue(selectRow());
         return value == null ? null : value.toString();
     }
+
     public Boolean selectBoolean() {
         Object value = getFirstValue(selectRow());
         if (value == null) return null;
@@ -97,78 +105,75 @@ public class Sql {
         if ("0".equals(s) || "false".equals(s)) return false;
         return Boolean.parseBoolean(s);
     }
+
     public List<Long> selectLongs() {
-        List<Long> result = new ArrayList<>();
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try {
-            ps = getConnection().prepareStatement(getSql());
-            setParams(ps);
-            rs = ps.executeQuery();
-            while (rs.next()) {
-                result.add(rs.getLong(1));
+        return execute((ps) -> {
+            List<Long> result = new ArrayList<>();
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(rs.getLong(1));
+                }
             }
             return result;
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } finally {
-            close(rs, ps);
-        }
+        }, false);
     }
+
     public List<Article> selectRows(Class<Article> clazz) {
-        List<Article> result = new ArrayList<>();
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try {
-            ps = getConnection().prepareStatement(getSql());
-            setParams(ps);
-            rs = ps.executeQuery();
-            while (rs.next()) {
-                result.add(mapRowToArticle(rs));
+        return execute((ps) -> {
+            List<Article> result = new ArrayList<>();
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(mapRowToArticle(rs));
+                }
             }
             return result;
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } finally {
-            close(rs, ps);
-        }
+        }, false);
     }
+
     public Article selectRow(Class<Article> clazz) {
         List<Article> articles = selectRows(clazz);
         return articles.isEmpty() ? null : articles.get(0);
     }
+
     public LocalDateTime selectDatetime() {
-        PreparedStatement ps = null;
-        ResultSet rs = null;
-        try {
-            ps = getConnection().prepareStatement(getSql());
-            setParams(ps);
-            rs = ps.executeQuery();
-            if (rs.next()) {
-                return rs.getTimestamp(1).toLocalDateTime();
+        return execute((ps) -> {
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getTimestamp(1).toLocalDateTime();
+                }
+                return null;
             }
-            return null;
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } finally {
-            close(rs, ps);
-        }
+        }, false);
     }
 
-    public String getSql() { return builder.getSql(); }
-    public List<Object> getParams() { return builder.getParams(); }
-    private Connection getConnection() { return connection; }
+    public String getSql() {
+        return builder.getSql();
+    }
+
+    public List<Object> getParams() {
+        return builder.getParams();
+    }
+
+    private Connection getConnection() {
+        return connection;
+    }
+
     private void setParams(PreparedStatement ps) throws SQLException {
         List<Object> params = getParams();
         for (int i = 0; i < params.size(); i++) {
             ps.setObject(i + 1, params.get(i));
         }
     }
+
     private void close(AutoCloseable... resources) {
         for (AutoCloseable r : resources) {
-            if (r != null) try { r.close(); } catch (Exception ignored) {}
+            if (r != null) try {
+                r.close();
+            } catch (Exception ignored) {
+            }
         }
     }
+
     private List<Map<String, Object>> mapResultSetToList(ResultSet rs) throws SQLException {
         List<Map<String, Object>> list = new ArrayList<>();
         ResultSetMetaData meta = rs.getMetaData();
@@ -182,10 +187,12 @@ public class Sql {
         }
         return list;
     }
+
     private Object getFirstValue(Map<String, Object> row) {
         if (row == null) return null;
         return row.values().stream().findFirst().orElse(null);
     }
+
     private Article mapRowToArticle(ResultSet rs) throws SQLException {
         Article article = new Article();
         article.setId(rs.getLong("id"));
@@ -195,5 +202,38 @@ public class Sql {
         article.setModifiedDate(rs.getTimestamp("modifiedDate").toLocalDateTime());
         article.setBlind(rs.getBoolean("isBlind"));
         return article;
+    }
+
+    // execute 헬퍼 메서드와 함수형 인터페이스 추가
+    // db에 연결하고 에러처리하는 반복적인 코드룰 여기서 처리해서 중복 x
+    private <T> T execute(SqlAction<T> action, boolean returnGeneratedKeys) {
+        Connection conn = null;
+        PreparedStatement ps = null;
+        ResultSet rs = null;
+
+        try {
+            conn = getConnection();
+            if (returnGeneratedKeys) {
+                ps = conn.prepareStatement(getSql(), Statement.RETURN_GENERATED_KEYS);
+            } else {
+                ps = conn.prepareStatement(getSql());
+            }
+            setParams(ps);
+            return action.apply(ps);
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        } finally {
+            try {
+                if (rs != null) rs.close();
+                if (ps != null) ps.close();
+            } catch (SQLException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @FunctionalInterface
+    private interface SqlAction<T> {
+        T apply(PreparedStatement ps) throws SQLException;
     }
 }
